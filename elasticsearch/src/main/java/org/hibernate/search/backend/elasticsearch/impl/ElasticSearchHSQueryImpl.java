@@ -29,6 +29,12 @@ import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
 import org.hibernate.search.backend.elasticsearch.ProjectionConstants;
 import org.hibernate.search.backend.elasticsearch.client.impl.JestClient;
 import org.hibernate.search.backend.elasticsearch.logging.impl.Log;
@@ -62,8 +68,6 @@ import io.searchbox.core.DocumentResult;
 import io.searchbox.core.Explain;
 import io.searchbox.core.Search;
 import io.searchbox.core.SearchResult;
-import io.searchbox.core.search.sort.Sort;
-import io.searchbox.core.search.sort.Sort.Sorting;
 
 /**
  * Query implementation based on ElasticSearch.
@@ -81,15 +85,15 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 	 */
 	private static final int MAX_RESULT_WINDOW_SIZE = 10000;
 
-	private final String jsonQuery;
+	private final QueryBuilder originalQuery;
 
 	private Integer resultSize;
 	private IndexSearcher searcher;
 	private SearchResult searchResult;
 
-	public ElasticSearchHSQueryImpl(String jsonQuery, ExtendedSearchIntegrator extendedIntegrator) {
+	public ElasticSearchHSQueryImpl(QueryBuilder originalQuery, ExtendedSearchIntegrator extendedIntegrator) {
 		super( extendedIntegrator );
-		this.jsonQuery = jsonQuery;
+		this.originalQuery = originalQuery;
 	}
 
 	@Override
@@ -206,7 +210,7 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 	@Override
 	protected TimeoutManagerImpl buildTimeoutManager() {
 		return new TimeoutManagerImpl(
-				jsonQuery,
+				originalQuery,
 				timeoutExceptionFactory,
 				this.extendedIntegrator.getTimingSource()
 		);
@@ -258,7 +262,7 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 		private IndexSearcher() {
 			entityTypesByName = new HashMap<>();
 			String idFieldName = null;
-			JsonArray typeFilters = new JsonArray();
+			BoolQueryBuilder typeFilters = QueryBuilders.boolQuery();
 			Set<String> indexNames = new HashSet<>();
 
 			for ( Class<?> queriedEntityType : getQueriedEntityTypes() ) {
@@ -271,7 +275,7 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 					if ( !( indexManager instanceof ElasticSearchIndexManager ) ) {
 						throw LOG.cannotRunEsQueryTargetingEntityIndexedWithNonEsIndexManager(
 							queriedEntityType,
-							jsonQuery
+							originalQuery.toString()
 						);
 					}
 
@@ -282,92 +286,62 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 					indexNames.add( esIndexManager.getActualIndexName() );
 				}
 
-				typeFilters.add( getEntityTypeFilter( queriedEntityType ) );
+				typeFilters.should( getEntityTypeFilter( queriedEntityType ) );
 			}
 
 			// Query filters; always a type filter, possibly a tenant id filter;
 			// TODO feed in user-provided filters
-			JsonObject effectiveFilter = getEffectiveFilter( typeFilters );
+			QueryBuilder effectiveFilter = getEffectiveFilter( typeFilters );
 
-			// TODO can we avoid the forth and back between GSON and String?
-			executedQuery = "{ \"query\" : { \"filtered\" : { " + jsonQuery.substring( 1, jsonQuery.length() - 1 ) + ", \"filter\" : " + effectiveFilter.toString() + " } } }";
-
-			Search.Builder search = new Search.Builder( executedQuery );
-			search.addIndex( indexNames );
-			search.setParameter( "from", firstResult );
-
-			// If the user has given a value, take it as is, let ES itself complain if it's too high; if no value is
-			// given, I take as much as possible, as by default only 10 rows would be returned
-			search.setParameter( "size", maxResults != null ? maxResults : MAX_RESULT_WINDOW_SIZE - firstResult );
+			SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query( QueryBuilders.boolQuery()
+					.must( originalQuery )
+					.filter( effectiveFilter ) )
+					.from( firstResult )
+					// If the user has given a value, take it as is, let ES itself complain if it's too high; if no
+					// value is given, I take as much as possible, as by default only 10 rows would be returned
+					.size( maxResults != null ? maxResults : MAX_RESULT_WINDOW_SIZE - firstResult );
 
 			// TODO: embedded fields
 			if ( sort != null ) {
 				for ( SortField sortField : sort.getSort() ) {
 					String sortFieldName = sortField.getField().equals( idFieldName ) ? "_uid" : sortField.getField();
-					search.addSort( new Sort( sortFieldName, sortField.getReverse() ? Sorting.DESC : Sorting.ASC ) );
+					searchSourceBuilder.sort( SortBuilders.fieldSort( sortFieldName )
+							.order( sortField.getReverse() ? SortOrder.DESC : SortOrder.ASC ) );
 				}
 			}
+
+			executedQuery = searchSourceBuilder.toString();
+			Search.Builder search = new Search.Builder( executedQuery );
+			search.addIndex( indexNames );
 			this.search = search.build();
 		}
 
-		private JsonObject getEffectiveFilter(JsonArray typeFilters) {
-			JsonArray filters = new JsonArray();
-
-			JsonObject tenantFilter = getTenantIdFilter();
+		private QueryBuilder getEffectiveFilter(QueryBuilder typeFilters) {
+			BoolQueryBuilder bool = QueryBuilders.boolQuery();
+			QueryBuilder tenantFilter = getTenantIdFilter();
 			if ( tenantFilter != null ) {
-				filters.add( tenantFilter );
+				bool.filter( tenantFilter );
 			}
 
-			// wrap type filters into should if there is more than one
-			JsonObject effectiveTypeFilter = new JsonObject();
-			if ( typeFilters.size() == 1 ) {
-				effectiveTypeFilter = typeFilters.get( 0 ).getAsJsonObject();
-			}
-			else {
-				JsonObject should = new JsonObject();
-				should.add( "should", typeFilters );
-				effectiveTypeFilter = new JsonObject();
-				effectiveTypeFilter.add( "bool", should );
-			}
-			filters.add( effectiveTypeFilter );
-
-			// wrap filters into must if there is more than one
-			JsonObject effectiveFilter = new JsonObject();
-			if ( filters.size() == 1 ) {
-				effectiveFilter = filters.get( 0 ).getAsJsonObject();
-			}
-			else {
-				JsonObject must = new JsonObject();
-				must.add( "must", filters );
-				effectiveFilter = new JsonObject();
-				effectiveFilter.add( "bool", must );
+			if ( typeFilters != null ) {
+				bool.filter( typeFilters );
 			}
 
-			return effectiveFilter;
+			// TODO: implement user filters
+
+			return bool;
 		}
 
-		private JsonObject getEntityTypeFilter(Class<?> queriedEntityType) {
-			JsonObject value = new JsonObject();
-			value.addProperty( "value", queriedEntityType.getName() );
-
-			JsonObject type = new JsonObject();
-			type.add( "type", value );
-
-			return type;
+		private QueryBuilder getEntityTypeFilter(Class<?> queriedEntityType) {
+			return QueryBuilders.typeQuery( queriedEntityType.getName() );
 		}
 
-		private JsonObject getTenantIdFilter() {
+		private QueryBuilder getTenantIdFilter() {
 			if ( tenantId == null ) {
 				return null;
 			}
 
-			JsonObject value = new JsonObject();
-			value.addProperty( DocumentBuilderIndexedEntity.TENANT_ID_FIELDNAME, tenantId );
-
-			JsonObject tenantFilter = new JsonObject();
-			tenantFilter.add( "term", value );
-
-			return tenantFilter;
+			return QueryBuilders.termQuery( DocumentBuilderIndexedEntity.TENANT_ID_FIELDNAME, tenantId );
 		}
 
 		private Iterable<Class<?>> getQueriedEntityTypes() {

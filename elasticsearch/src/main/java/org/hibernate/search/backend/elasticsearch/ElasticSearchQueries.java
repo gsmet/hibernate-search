@@ -6,12 +6,14 @@
  */
 package org.hibernate.search.backend.elasticsearch;
 
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.hibernate.search.backend.elasticsearch.impl.ElasticSearchHSQueryImpl;
+import org.hibernate.search.backend.elasticsearch.impl.QueryBuilders2;
 import org.hibernate.search.engine.integration.impl.ExtendedSearchIntegrator;
 import org.hibernate.search.query.engine.spi.HSQuery;
 import org.hibernate.search.query.engine.spi.QueryDescriptor;
 
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /**
@@ -32,8 +34,7 @@ public class ElasticSearchQueries {
 	public static QueryDescriptor fromJson(String jsonQuery) {
 		// TODO Parse + Re-render using Gson for now to leverage single quote support
 		jsonQuery = new JsonParser().parse( jsonQuery ).toString();
-
-		return new ElasticSearchJsonQuery( jsonQuery );
+		return new ElasticSearchJsonQuery( QueryBuilders2.plainQuery( jsonQuery ) );
 	}
 
 	/**
@@ -45,24 +46,15 @@ public class ElasticSearchQueries {
 	public static QueryDescriptor fromQueryString(String queryStringQuery) {
 		// Payload looks like so:
 		// { "query" : { "query_string" : { "query" : "abstract:Hibernate" } } }
-
-		JsonObject query = new JsonObject();
-		query.addProperty( "query", queryStringQuery );
-
-		JsonObject queryString = new JsonObject();
-		queryString.add( "query_string", query );
-
-		JsonObject queryObject = new JsonObject();
-		queryObject.add( "query", queryString );
-
-		return new ElasticSearchJsonQuery( queryObject.toString() );
+		// XXX GSM clean up the comments
+		return new ElasticSearchJsonQuery( QueryBuilders.queryStringQuery( queryStringQuery ) );
 	}
 
 	private static class ElasticSearchJsonQuery implements QueryDescriptor {
 
-		private final String jsonQuery;
+		private final QueryBuilder jsonQuery;
 
-		public ElasticSearchJsonQuery(String jsonQuery) {
+		public ElasticSearchJsonQuery(QueryBuilder jsonQuery) {
 			this.jsonQuery = jsonQuery;
 		}
 
@@ -73,7 +65,7 @@ public class ElasticSearchQueries {
 
 		@Override
 		public String toString() {
-			return jsonQuery;
+			return jsonQuery.toString();
 		}
 	}
 }
