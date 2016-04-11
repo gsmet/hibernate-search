@@ -8,11 +8,11 @@ addons:
     packages:
       - oracle-java8-installer
 # might be useful to push reports to an S3 bucket
-#  artifacts:
-#    paths:
-#      - $(find $HOME -name surefire-reports | tr "\n" ":")
-#    debug: true
-#  s3_region: 'us-west-2'
+  artifacts:
+    paths:
+      - $(find $HOME -name surefire-reports | tr "\n" ":")
+    debug: true
+  s3_region: 'us-west-2'
 cache:
   directories:
     - $HOME/.m2
@@ -24,14 +24,14 @@ env:
 install:
   - mvn -v
   # first run to download all the Maven dependencies without logging
-  - mvn -s settings-example.xml -B -q clean install -DskipTests=true
+  - mvn -B -q clean install -DskipTests=true
   # we run checkstyle first to fail fast if there is a styling error
-  - mvn -s settings-example.xml checkstyle:check
+  - mvn checkstyle:check
 before_script: 
   - if [[ "$DB" == "pgsql" ]]; then psql -U postgres -f 'travis/pgsql.sql';fi 
   - if [[ "$DB" == "mariadb" ]]; then mysql -u root < 'travis/mariadb.sql'; fi
 script:
-  - if [[ "$DB" == "h2" ]]; then mvn -s settings-example.xml verify;fi 
+  - if [[ "$DB" == "h2" ]]; then mvn -pl integrationtest/wildfly/ verify;fi 
   - if [[ "$DB" == "pgsql" ]]; then mvn -s settings-example.xml -Pci-postgresql verify;fi 
   - if [[ "$DB" == "mariadb" ]]; then mvn -s settings-example.xml -Pci-mariadb verify; fi
   
