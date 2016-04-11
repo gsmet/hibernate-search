@@ -3,7 +3,7 @@ jdk:
   - oraclejdk8
 addons:
   postgresql: '9.4'
-  mariadb: '10.1'
+  mariadb: '10.0'
   apt:
     packages:
       - oracle-java8-installer
@@ -24,13 +24,13 @@ env:
 install:
   - mvn -v
   # first run to download all the Maven dependencies without logging
-  - mvn -s settings-example.xml -B -q clean compile -DskipTests=true
+  - mvn -s settings-example.xml -B -q clean install -DskipTests=true
+  # we run checkstyle first to fail fast if there is a styling error
+  - mvn -s settings-example.xml checkstyle:check
 before_script: 
   - if [[ "$DB" == "pgsql" ]]; then psql -U postgres -f 'travis/pgsql.sql';fi 
   - if [[ "$DB" == "mariadb" ]]; then mysql -u root < 'travis/mariadb.sql'; fi
 script:
-  # we run checkstyle first to fail fast if there is a styling error
-  - mvn -s settings-example.xml checkstyle:check
   - if [[ "$DB" == "h2" ]]; then mvn -s settings-example.xml -Ph2 verify;fi 
   - if [[ "$DB" == "pgsql" ]]; then mvn -s settings-example.xml -Pci-postgresql verify;fi 
   - if [[ "$DB" == "mariadb" ]]; then mvn -s settings-example.xml -Pci-mariadb verify; fi
