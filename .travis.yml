@@ -12,7 +12,6 @@ addons:
     paths:
       - $(find $HOME -name surefire-reports | tr "\n" ":")
       - $(find $HOME -name failsafe-reports | tr "\n" ":")
-    debug: true
   s3_region: 'us-west-2'
 cache:
   directories:
