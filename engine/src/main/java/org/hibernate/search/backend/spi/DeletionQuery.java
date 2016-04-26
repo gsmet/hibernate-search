@@ -7,7 +7,7 @@
 package org.hibernate.search.backend.spi;
 
 import org.apache.lucene.search.Query;
-import org.hibernate.search.util.impl.ScopedAnalyzer;
+import org.hibernate.search.util.impl.ScopedLuceneAnalyzer;
 
 /**
  * interface for Serializable Queries that can be used to delete from an index.
@@ -32,7 +32,7 @@ public interface DeletionQuery {
 	 * @param analyzerForEntity the analyzer to be used for this query
 	 * @return the deletion query as Lucene {@link Query}
 	 */
-	Query toLuceneQuery(ScopedAnalyzer analyzerForEntity);
+	Query toLuceneQuery(ScopedLuceneAnalyzer analyzerForEntity);
 
 	/**
 	 * We are serializing to a String array here instead of a byte array since we don't want implementors to use the

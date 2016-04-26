@@ -6,25 +6,48 @@
  */
 package org.hibernate.search.analyzer.impl;
 
+import org.hibernate.search.util.logging.impl.Log;
+import org.hibernate.search.util.logging.impl.LoggerFactory;
+
 /**
- * An analyzer defined on the backend.
+ * A reference to a {@code RemoteAnalyzer}.
  *
  * @author Davide D'Alto
+ * @author Guillaume Smet
  */
 public final class RemoteAnalyzerReference implements AnalyzerReference {
 
-	private final String name;
+	private static final Log log = LoggerFactory.make();
+
+	private String name;
+	private RemoteAnalyzer analyzer;
 
 	public RemoteAnalyzerReference(String name) {
 		this.name = name;
+	}
+
+	public RemoteAnalyzerReference(RemoteAnalyzer analyzer) {
+		this.analyzer = analyzer;
 	}
 
 	public String getName() {
 		return name;
 	}
 
+	public RemoteAnalyzer getAnalyzer() {
+		validate();
+		return analyzer;
+	}
+
+	public void setAnalyzer(RemoteAnalyzer analyzer) {
+		this.analyzer = analyzer;
+	}
+
 	@Override
 	public void close() {
+		if ( analyzer != null ) {
+			analyzer.close();
+		}
 	}
 
 	@Override
@@ -33,8 +56,15 @@ public final class RemoteAnalyzerReference implements AnalyzerReference {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <T extends AnalyzerReference> T unwrap(Class<T> analyzerType) {
 		return (T) this;
+	}
+
+	private void validate() {
+		if ( analyzer == null ) {
+			throw log.remoteAnalyzerNotInitialized( this );
+		}
 	}
 
 	@Override
@@ -43,6 +73,10 @@ public final class RemoteAnalyzerReference implements AnalyzerReference {
 		sb.append( getClass().getSimpleName() );
 		sb.append( "<" );
 		sb.append( name );
+		if ( analyzer != null ) {
+			sb.append( ", analyzer: " );
+			sb.append( analyzer );
+		}
 		sb.append( ">" );
 		return sb.toString();
 	}

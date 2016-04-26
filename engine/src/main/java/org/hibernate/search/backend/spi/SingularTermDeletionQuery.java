@@ -19,7 +19,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.NumericUtils;
 import org.hibernate.search.exception.AssertionFailure;
-import org.hibernate.search.util.impl.ScopedAnalyzer;
+import org.hibernate.search.util.impl.ScopedLuceneAnalyzer;
 
 /**
  * DeleteByQuery equivalent to {@link org.apache.lucene.search.TermQuery}
@@ -85,7 +85,7 @@ public final class SingularTermDeletionQuery implements DeletionQuery {
 	}
 
 	@Override
-	public Query toLuceneQuery(ScopedAnalyzer analyzerForEntity) {
+	public Query toLuceneQuery(ScopedLuceneAnalyzer analyzerForEntity) {
 		if ( this.getType() == Type.STRING ) {
 			try {
 				TokenStream tokenStream = analyzerForEntity.tokenStream( this.getFieldName(), (String) this.getValue() );

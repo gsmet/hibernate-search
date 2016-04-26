@@ -32,7 +32,7 @@ import org.hibernate.search.query.facet.FacetSortOrder;
 import org.hibernate.search.query.facet.FacetingRequest;
 import org.hibernate.search.spatial.impl.DistanceFilter;
 import org.hibernate.search.spatial.impl.SpatialHashFilter;
-import org.hibernate.search.util.impl.ScopedAnalyzer;
+import org.hibernate.search.util.impl.ScopedLuceneAnalyzer;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
 
 import com.google.gson.JsonArray;
@@ -166,7 +166,7 @@ public class ToElasticsearch {
 	}
 
 	public static JsonObject fromDeletionQuery(DocumentBuilderIndexedEntity metadata, DeletionQuery deletionQuery) {
-		ScopedAnalyzer scopedAnalyzer = (ScopedAnalyzer) metadata.getAnalyzer().unwrap( LuceneAnalyzerReference.class ).getAnalyzer();
+		ScopedLuceneAnalyzer scopedAnalyzer = (ScopedLuceneAnalyzer) metadata.getAnalyzer().unwrap( LuceneAnalyzerReference.class ).getAnalyzer();
 		return fromLuceneQuery( deletionQuery.toLuceneQuery( scopedAnalyzer ) );
 	}
 

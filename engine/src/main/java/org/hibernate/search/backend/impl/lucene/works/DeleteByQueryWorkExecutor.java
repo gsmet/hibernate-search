@@ -23,7 +23,7 @@ import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.engine.spi.DocumentBuilderIndexedEntity;
 import org.hibernate.search.exception.SearchException;
 import org.hibernate.search.store.Workspace;
-import org.hibernate.search.util.impl.ScopedAnalyzer;
+import org.hibernate.search.util.impl.ScopedLuceneAnalyzer;
 import org.hibernate.search.util.impl.ScopedAnalyzerReference;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
@@ -59,7 +59,7 @@ class DeleteByQueryWorkExecutor implements LuceneWorkExecutor {
 
 		{
 			ScopedAnalyzerReference analyzer = this.workspace.getDocumentBuilder( entityType ).getAnalyzer();
-			ScopedAnalyzer scopeAnalyzer = (ScopedAnalyzer) analyzer.unwrap( LuceneAnalyzerReference.class ).getAnalyzer();
+			ScopedLuceneAnalyzer scopeAnalyzer = (ScopedLuceneAnalyzer) analyzer.unwrap( LuceneAnalyzerReference.class ).getAnalyzer();
 
 			Query queryToDelete = query.toLuceneQuery( scopeAnalyzer );
 
