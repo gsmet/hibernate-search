@@ -98,6 +98,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <verbose>false</verbose>
+                    <quiet>true</quiet>
                     <failOnError>${failOnJavaDocError}</failOnError>
                     <sourcepath>
                         ${basedir}/../engine/src/main/java;
