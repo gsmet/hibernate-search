@@ -1,8 +1,6 @@
 sudo: required
 dist: trusty
 language: java
-jdk:
-  - oraclejdk8
 addons:
   # for now, let's test only with H2
   #postgresql: '9.4'
@@ -28,8 +26,11 @@ install:
   # The Maven install provided by Travis is outdated, use Maven wrapper to get the latest version
   - mvn -N io.takari:maven:wrapper
   - ./mvnw -v
+  # We declare explicitly Maven Central as the JBoss repository takes precedences over it
+  - sed -i settings-example.xml -e "s@<repositories>@<repositories><repository><id>central</id><name>Central</name><url>http://repo1.maven.org/maven2/</url></repository>@"
+  - sed -i settings-example.xml -e "s@<pluginRepositories>@<pluginRepositories><pluginRepository><id>central</id><name>Central</name><url>http://repo1.maven.org/maven2/</url></pluginRepository>@"
   # first run to download all the Maven dependencies without logging
-  - ./mvnw -s settings-example.xml -B -q clean install -DskipTests=true
+  - travis_wait ./mvnw -s settings-example.xml -B -q clean install -DskipTests=true -Dmaven.javadoc.skip=true
   # we run checkstyle first to fail fast if there is a styling error
   - ./mvnw -s settings-example.xml checkstyle:check
 before_script: 
