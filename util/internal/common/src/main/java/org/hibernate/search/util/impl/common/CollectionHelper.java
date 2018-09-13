@@ -61,6 +61,15 @@ public final class CollectionHelper {
 		Collections.addAll( list, otherItems );
 		return list;
 	}
+	
+	@SafeVarargs
+	public static <T> List<T> asList(T firstItem, T secondItem, T... otherItems) {
+		List<T> list = new ArrayList<>( otherItems.length + 2 );
+		list.add( firstItem );
+		list.add( secondItem );
+		Collections.addAll( list, otherItems );
+		return list;
+	}
 
 	public static <T> List<T> toImmutableList(List<? extends T> list) {
 		switch ( list.size() ) {

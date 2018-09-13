@@ -63,7 +63,7 @@ class SearchQueryFactoryImpl
 	@Override
 	public <T> SearchQueryBuilder<T, ElasticsearchSearchQueryElementCollector> asProjections(
 			SessionContext sessionContext, HitAggregator<ProjectionHitCollector, List<T>> hitAggregator,
-			String... projections) {
+			SearchProjection<?>... projections) {
 		BitSet projectionFound = new BitSet( projections.length );
 
 		HitExtractor<? super ProjectionHitCollector> hitExtractor;
@@ -84,7 +84,7 @@ class SearchQueryFactoryImpl
 		}
 		if ( projectionFound.cardinality() < projections.length ) {
 			projectionFound.flip( 0, projections.length );
-			List<String> unknownProjections = projectionFound.stream()
+			List<SearchProjection<?>> unknownProjections = projectionFound.stream()
 					.mapToObj( i -> projections[i] )
 					.collect( Collectors.toList() );
 			throw log.unknownProjectionForSearch( unknownProjections, searchTargetModel.getIndexesEventContext() );
@@ -94,10 +94,10 @@ class SearchQueryFactoryImpl
 	}
 
 	private HitExtractor<? super ProjectionHitCollector> createProjectionHitExtractor(
-			ElasticsearchIndexModel indexModel, String[] projections, BitSet projectionFound) {
+			ElasticsearchIndexModel indexModel, SearchProjection<?>[] projections, BitSet projectionFound) {
 		List<HitExtractor<? super ProjectionHitCollector>> extractors = new ArrayList<>( projections.length );
 		for ( int i = 0; i < projections.length; ++i ) {
-			String projection = projections[i];
+			SearchProjection<?> projection = projections[i];
 			switch ( projection ) {
 				case ProjectionConstants.OBJECT:
 					projectionFound.set( i );

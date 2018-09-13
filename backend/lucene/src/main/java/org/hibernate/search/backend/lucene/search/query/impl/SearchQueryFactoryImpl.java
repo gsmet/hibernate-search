@@ -20,6 +20,7 @@ import org.hibernate.search.backend.lucene.document.model.impl.LuceneIndexSchema
 import org.hibernate.search.backend.lucene.logging.impl.Log;
 import org.hibernate.search.backend.lucene.search.impl.LuceneSearchQueryElementCollector;
 import org.hibernate.search.backend.lucene.search.impl.LuceneSearchTargetModel;
+import org.hibernate.search.backend.lucene.search.projection.impl.LuceneSearchProjection;
 import org.hibernate.search.engine.common.spi.SessionContext;
 import org.hibernate.search.engine.search.ProjectionConstants;
 import org.hibernate.search.engine.search.query.spi.DocumentReferenceHitCollector;
@@ -31,7 +32,7 @@ import org.hibernate.search.engine.search.query.spi.SearchQueryFactory;
 import org.hibernate.search.util.impl.common.LoggerFactory;
 
 class SearchQueryFactoryImpl
-		implements SearchQueryFactory<LuceneSearchQueryElementCollector> {
+		implements SearchQueryFactory<LuceneSearchQueryElementCollector, LuceneSearchProjection<?>> {
 
 	private static final Log log = LoggerFactory.make( Log.class, MethodHandles.lookup() );
 
@@ -59,7 +60,7 @@ class SearchQueryFactoryImpl
 	@Override
 	public <T> SearchQueryBuilder<T, LuceneSearchQueryElementCollector> asProjections(
 			SessionContext sessionContext, HitAggregator<ProjectionHitCollector, List<T>> hitAggregator,
-			String... projections) {
+			LuceneSearchProjection<?> projection) {
 		BitSet projectionFound = new BitSet( projections.length );
 
 		HitExtractor<? super ProjectionHitCollector> hitExtractor;
@@ -94,6 +95,9 @@ class SearchQueryFactoryImpl
 		List<HitExtractor<? super ProjectionHitCollector>> extractors = new ArrayList<>( projections.length );
 		for ( int i = 0; i < projections.length; ++i ) {
 			String projection = projections[i];
+
+
+
 			switch ( projection ) {
 				case ProjectionConstants.OBJECT:
 					projectionFound.set( i );
@@ -111,7 +115,7 @@ class SearchQueryFactoryImpl
 					LuceneIndexSchemaFieldNode<?> schemaNode = indexModel.getFieldNode( projection );
 					if ( schemaNode != null ) {
 						projectionFound.set( i );
-						extractors.add( new FieldProjectionHitExtractor<>( projection, schemaNode ) );
+						extractors.add( new FieldProjectionHitExtractor( projection, schemaNode.getCodec() ) );
 					}
 					else {
 						// Make sure that the result list will have the correct indices and size

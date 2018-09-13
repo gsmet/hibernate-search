@@ -9,28 +9,17 @@ package org.hibernate.search.backend.lucene.search.query.impl;
 import java.util.Set;
 
 import org.apache.lucene.document.Document;
-
-import org.hibernate.search.backend.lucene.document.model.impl.LuceneIndexSchemaFieldNode;
 import org.hibernate.search.backend.lucene.types.codec.impl.LuceneFieldCodec;
-import org.hibernate.search.backend.lucene.types.converter.impl.LuceneFieldConverter;
 import org.hibernate.search.engine.search.query.spi.ProjectionHitCollector;
 
-class FieldProjectionHitExtractor<F> implements HitExtractor<ProjectionHitCollector> {
+public class FieldProjectionHitExtractor implements HitExtractor<ProjectionHitCollector> {
 
 	private final String absoluteFieldPath;
 
-	private final LuceneFieldConverter<F, ?> converter;
-	private final LuceneFieldCodec<F> codec;
+	private final LuceneFieldCodec<?> codec;
 
-	FieldProjectionHitExtractor(String absoluteFieldPath,
-			LuceneIndexSchemaFieldNode<F> schemaFieldNode) {
-		this( absoluteFieldPath, schemaFieldNode.getConverter(), schemaFieldNode.getCodec() );
-	}
-
-	private FieldProjectionHitExtractor(String absoluteFieldPath,
-			LuceneFieldConverter<F, ?> converter, LuceneFieldCodec<F> codec) {
+	public FieldProjectionHitExtractor(String absoluteFieldPath, LuceneFieldCodec<?> codec) {
 		this.absoluteFieldPath = absoluteFieldPath;
-		this.converter = converter;
 		this.codec = codec;
 	}
 
@@ -51,7 +40,6 @@ class FieldProjectionHitExtractor<F> implements HitExtractor<ProjectionHitCollec
 
 	@Override
 	public void extract(ProjectionHitCollector collector, Document document) {
-		F rawValue = codec.decode( document, absoluteFieldPath );
-		collector.collectProjection( converter.convertFromProjection( rawValue ) );
+		collector.collectProjection( codec.decode( document, absoluteFieldPath ) );
 	}
 }

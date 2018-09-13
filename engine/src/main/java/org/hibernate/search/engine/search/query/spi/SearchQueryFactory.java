@@ -17,8 +17,9 @@ import org.hibernate.search.engine.common.spi.SessionContext;
  * to ask the backend to build search queries.
  *
  * @param <C> The type of query element collector
+ * @param <P> The type of the projection
  */
-public interface SearchQueryFactory<C> {
+public interface SearchQueryFactory<C, P> {
 
 	<O> SearchQueryBuilder<O, C> asObjects(SessionContext sessionContext,
 			HitAggregator<LoadingHitCollector, List<O>> hitAggregator);
@@ -27,6 +28,6 @@ public interface SearchQueryFactory<C> {
 			HitAggregator<DocumentReferenceHitCollector, List<T>> hitAggregator);
 
 	<T> SearchQueryBuilder<T, C> asProjections(SessionContext sessionContext,
-			HitAggregator<ProjectionHitCollector, List<T>> hitAggregator, String... projections);
+			HitAggregator<ProjectionHitCollector, List<T>> hitAggregator, P projection);
 
 }
